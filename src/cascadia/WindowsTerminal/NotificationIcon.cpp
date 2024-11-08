@@ -110,7 +110,7 @@ void NotificationIcon::CreateNotificationIcon()
 // Return Value:
 // - <none>
 void NotificationIcon::ShowContextMenu(const til::point coord,
-                                       const IVectorView<winrt::Microsoft::Terminal::Remoting::PeasantInfo>& peasants)
+                                       const IVectorView<winrt::TerminalApp::PeasantInfo>& peasants)
 {
     if (const auto hMenu = _CreateContextMenu(peasants))
     {
@@ -142,7 +142,7 @@ void NotificationIcon::ShowContextMenu(const til::point coord,
 // - peasants: A map of all peasants' ID to their window name.
 // Return Value:
 // - The handle to the newly created context menu.
-HMENU NotificationIcon::_CreateContextMenu(const IVectorView<winrt::Microsoft::Terminal::Remoting::PeasantInfo>& peasants)
+HMENU NotificationIcon::_CreateContextMenu(const IVectorView<winrt::TerminalApp::PeasantInfo>& peasants)
 {
     auto hMenu = CreatePopupMenu();
     if (hMenu)
@@ -211,11 +211,11 @@ void NotificationIcon::MenuItemSelected(const HMENU menu, const UINT menuItemInd
     {
         if (gsl::narrow<NotificationIconMenuItemAction>(mi.dwMenuData) == NotificationIconMenuItemAction::SummonWindow)
         {
-            winrt::Microsoft::Terminal::Remoting::SummonWindowSelectionArgs args{};
+            winrt::TerminalApp::SummonWindowSelectionArgs args{};
             args.WindowID(GetMenuItemID(menu, menuItemIndex));
             args.SummonBehavior().ToggleVisibility(false);
             args.SummonBehavior().MoveToCurrentDesktop(false);
-            args.SummonBehavior().ToMonitor(Remoting::MonitorBehavior::InPlace);
+            args.SummonBehavior().ToMonitor(winrt::TerminalApp::MonitorBehavior::InPlace);
             SummonWindowRequested.raise(args);
             return;
         }
@@ -227,10 +227,10 @@ void NotificationIcon::MenuItemSelected(const HMENU menu, const UINT menuItemInd
     {
     case NotificationIconMenuItemAction::FocusTerminal:
     {
-        winrt::Microsoft::Terminal::Remoting::SummonWindowSelectionArgs args{};
+        winrt::TerminalApp::SummonWindowSelectionArgs args{};
         args.SummonBehavior().ToggleVisibility(false);
         args.SummonBehavior().MoveToCurrentDesktop(false);
-        args.SummonBehavior().ToMonitor(Remoting::MonitorBehavior::InPlace);
+        args.SummonBehavior().ToMonitor(winrt::TerminalApp::MonitorBehavior::InPlace);
         SummonWindowRequested.raise(args);
         break;
     }
@@ -246,9 +246,9 @@ void NotificationIcon::MenuItemSelected(const HMENU menu, const UINT menuItemInd
 void NotificationIcon::NotificationIconPressed()
 {
     // No name in the args means summon the mru window.
-    winrt::Microsoft::Terminal::Remoting::SummonWindowSelectionArgs args{};
+    winrt::TerminalApp::SummonWindowSelectionArgs args{};
     args.SummonBehavior().MoveToCurrentDesktop(false);
-    args.SummonBehavior().ToMonitor(Remoting::MonitorBehavior::InPlace);
+    args.SummonBehavior().ToMonitor(winrt::TerminalApp::MonitorBehavior::InPlace);
     args.SummonBehavior().ToggleVisibility(false);
     SummonWindowRequested.raise(args);
 }

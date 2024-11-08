@@ -21,17 +21,16 @@ using VirtualKeyModifiers = winrt::Windows::System::VirtualKeyModifiers;
 #define TERMINAL_MESSAGE_CLASS_NAME L"TERMINAL_MESSAGE_CLASS"
 extern "C" IMAGE_DOS_HEADER __ImageBase;
 
-WindowEmperor::WindowEmperor() noexcept :
-    _app{}
+WindowEmperor::WindowEmperor() noexcept
 {
-    _manager.FindTargetWindowRequested([this](const winrt::Windows::Foundation::IInspectable& /*sender*/,
-                                              const winrt::Microsoft::Terminal::Remoting::FindTargetWindowArgs& findWindowArgs) {
+    /*_manager.FindTargetWindowRequested([this](const winrt::Windows::Foundation::IInspectable&,
+                                              const winrt::TerminalApp::FindTargetWindowArgs& findWindowArgs) {
         {
             const auto targetWindow = _app.Logic().FindTargetWindow(findWindowArgs.Args().Commandline());
             findWindowArgs.ResultTargetWindow(targetWindow.WindowId());
             findWindowArgs.ResultTargetWindowName(targetWindow.WindowName());
         }
-    });
+    });*/
 
     _dispatcher = winrt::Windows::System::DispatcherQueue::GetForCurrentThread();
 }
@@ -90,18 +89,18 @@ void WindowEmperor::HandleCommandlineArgs(int nCmdShow)
         env = winrt::hstring{ beg, gsl::narrow<uint32_t>(end - beg) };
     }
 
-    const Remoting::CommandlineArgs eventArgs{ args, cwd, gsl::narrow_cast<uint32_t>(nCmdShow), std::move(env) };
-    const auto isolatedMode{ _app.Logic().IsolatedMode() };
-    const auto result = _manager.ProposeCommandline(eventArgs, isolatedMode);
+    const winrt::TerminalApp::CommandlineArgs eventArgs{ args, cwd, gsl::narrow_cast<uint32_t>(nCmdShow), std::move(env) };
+    //const auto isolatedMode{ _app.Logic().IsolatedMode() };
+    //const auto result = _manager.ProposeCommandline(eventArgs, isolatedMode);
     int exitCode = 0;
 
-    if (result.ShouldCreateWindow())
+    //if (result.ShouldCreateWindow())
     {
-        _createNewWindowThread(Remoting::WindowRequestedArgs{ result, eventArgs });
+        _createNewWindowThread(winrt::TerminalApp::WindowRequestedArgs{ nullptr, eventArgs });
         _becomeMonarch();
         WaitForWindows();
     }
-    else
+    /*else
     {
         const auto res = _app.Logic().GetParseCommandlineMessage(eventArgs.Commandline());
         if (!res.Message.empty())
@@ -109,7 +108,7 @@ void WindowEmperor::HandleCommandlineArgs(int nCmdShow)
             AppHost::s_DisplayMessageBox(res);
         }
         exitCode = res.ExitCode;
-    }
+    }*/
 
     // There's a mysterious crash in XAML on Windows 10 if you just let _app get destroyed (GH#15410).
     // We also need to ensure that all UI threads exit before WindowEmperor leaves the scope on the main thread (MSFT:46744208).
@@ -132,9 +131,8 @@ void WindowEmperor::WaitForWindows()
     TerminateProcess(GetCurrentProcess(), 0);
 }
 
-void WindowEmperor::_createNewWindowThread(const Remoting::WindowRequestedArgs& args)
+void WindowEmperor::_createNewWindowThread(const winrt::TerminalApp::WindowRequestedArgs& args)
 {
-    Remoting::Peasant peasant{ _manager.CreatePeasant(args) };
     std::shared_ptr<WindowThread> window{ nullptr };
 
     // FIRST: Attempt to reheat an existing window that we refrigerated for
@@ -156,7 +154,7 @@ void WindowEmperor::_createNewWindowThread(const Remoting::WindowRequestedArgs& 
         // Cool! Let's increment the number of active windows, and re-heat it.
         _windowThreadInstances.fetch_add(1, std::memory_order_relaxed);
 
-        window->Microwave(args, peasant);
+        window->Microwave(args);
         // This will unblock the event we're waiting on in KeepWarm, and the
         // window thread (started below) will continue through it's loop
         return;
@@ -165,7 +163,7 @@ void WindowEmperor::_createNewWindowThread(const Remoting::WindowRequestedArgs& 
     // At this point, there weren't any pending refrigerated threads we could
     // just use. That's fine. Let's just go create a new one.
 
-    window = std::make_shared<WindowThread>(_app.Logic(), args, _manager, peasant);
+    window = std::make_shared<WindowThread>(_app.Logic(), args, weak_from_this());
 
     std::weak_ptr<WindowEmperor> weakThis{ weak_from_this() };
 
@@ -322,9 +320,9 @@ void WindowEmperor::_becomeMonarch()
 {
     // Add a callback to the window manager so that when the Monarch wants a new
     // window made, they come to us
-    _manager.RequestNewWindow([this](auto&&, const Remoting::WindowRequestedArgs& args) {
+    /*_manager.RequestNewWindow([this](auto&&, const winrt::TerminalApp::WindowRequestedArgs& args) {
         _createNewWindowThread(args);
-    });
+    });*/
 
     _createMessageWindow();
 
@@ -345,9 +343,6 @@ void WindowEmperor::_becomeMonarch()
 
     // Set the number of open windows (so we know if we are the last window)
     // and subscribe for updates if there are any changes to that number.
-
-    _revokers.WindowCreated = _manager.WindowCreated(winrt::auto_revoke, { this, &WindowEmperor::_numberOfWindowsChanged });
-    _revokers.WindowClosed = _manager.WindowClosed(winrt::auto_revoke, { this, &WindowEmperor::_numberOfWindowsChanged });
 
     // If a previous session of Windows Terminal stored buffer_*.txt files, then we need to clean all those up on exit
     // that aren't needed anymore, even if the user disabled the ShouldUsePersistedLayout() setting in the meantime.
@@ -447,7 +442,7 @@ LRESULT WindowEmperor::_messageHandler(UINT const message, WPARAM const wParam, 
         case WM_CONTEXTMENU:
         {
             const til::point eventPoint{ GET_X_LPARAM(wParam), GET_Y_LPARAM(wParam) };
-            _notificationIcon->ShowContextMenu(eventPoint, _manager.GetPeasantInfos());
+            //_notificationIcon->ShowContextMenu(eventPoint, _manager.GetPeasantInfos());
             return 0;
         }
         }
@@ -620,7 +615,7 @@ void WindowEmperor::_hotkeyPressed(const long hotkeyIndex)
     }
 
     const auto& summonArgs = til::at(_hotkeys, hotkeyIndex);
-    Remoting::SummonWindowSelectionArgs args{ summonArgs.Name() };
+    winrt::TerminalApp::SummonWindowSelectionArgs args{ summonArgs.Name() };
 
     // desktop:any - MoveToCurrentDesktop=false, OnCurrentDesktop=false
     // desktop:toCurrent - MoveToCurrentDesktop=true, OnCurrentDesktop=false
@@ -633,17 +628,17 @@ void WindowEmperor::_hotkeyPressed(const long hotkeyIndex)
     switch (summonArgs.Monitor())
     {
     case Settings::Model::MonitorBehavior::Any:
-        args.SummonBehavior().ToMonitor(Remoting::MonitorBehavior::InPlace);
+        args.SummonBehavior().ToMonitor(winrt::TerminalApp::MonitorBehavior::InPlace);
         break;
     case Settings::Model::MonitorBehavior::ToCurrent:
-        args.SummonBehavior().ToMonitor(Remoting::MonitorBehavior::ToCurrent);
+        args.SummonBehavior().ToMonitor(winrt::TerminalApp::MonitorBehavior::ToCurrent);
         break;
     case Settings::Model::MonitorBehavior::ToMouse:
-        args.SummonBehavior().ToMonitor(Remoting::MonitorBehavior::ToMouse);
+        args.SummonBehavior().ToMonitor(winrt::TerminalApp::MonitorBehavior::ToMouse);
         break;
     }
 
-    _manager.SummonWindow(args);
+    //_manager.SummonWindow(args);
     if (args.FoundMatch())
     {
         // Excellent, the window was found. We have nothing else to do here.
@@ -764,7 +759,7 @@ safe_void_coroutine WindowEmperor::_setupGlobalHotkeys()
 void WindowEmperor::_createNotificationIcon()
 {
     _notificationIcon = std::make_unique<NotificationIcon>(_window.get());
-    _notificationIcon->SummonWindowRequested([this](auto& args) { _manager.SummonWindow(args); });
+    //_notificationIcon->SummonWindowRequested([this](auto& args) { _manager.SummonWindow(args); });
 }
 
 // Method Description:
@@ -834,7 +829,7 @@ void WindowEmperor::_hideNotificationIconRequested()
         // If we no longer want the tray icon, but we did have one, then quick
         // re-summon all our windows, so they don't get lost when the icon
         // disappears forever.
-        _manager.SummonAllWindows();
+        //_manager.SummonAllWindows();
 
         _destroyNotificationIcon();
     }

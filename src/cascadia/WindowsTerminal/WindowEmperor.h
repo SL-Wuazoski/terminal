@@ -29,15 +29,13 @@ public:
     void HandleCommandlineArgs(int nCmdShow);
 
 private:
-    void _createNewWindowThread(const winrt::Microsoft::Terminal::Remoting::WindowRequestedArgs& args);
-
+    void _createNewWindowThread(const winrt::TerminalApp::WindowRequestedArgs& args);
     [[nodiscard]] static LRESULT __stdcall _wndProc(HWND const window, UINT const message, WPARAM const wparam, LPARAM const lparam) noexcept;
     LRESULT _messageHandler(UINT const message, WPARAM const wParam, LPARAM const lParam) noexcept;
     wil::unique_hwnd _window;
 
     winrt::TerminalApp::App _app;
     winrt::Windows::System::DispatcherQueue _dispatcher{ nullptr };
-    winrt::Microsoft::Terminal::Remoting::WindowManager _manager;
 
     til::shared_mutex<std::vector<std::shared_ptr<WindowThread>>> _windows;
     std::atomic<uint32_t> _windowThreadInstances;
@@ -79,10 +77,4 @@ private:
     void _checkWindowsForNotificationIcon();
     void _showNotificationIconRequested();
     void _hideNotificationIconRequested();
-
-    struct Revokers
-    {
-        winrt::Microsoft::Terminal::Remoting::WindowManager::WindowCreated_revoker WindowCreated;
-        winrt::Microsoft::Terminal::Remoting::WindowManager::WindowClosed_revoker WindowClosed;
-    } _revokers{};
 };

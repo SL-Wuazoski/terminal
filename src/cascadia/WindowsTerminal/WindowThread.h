@@ -7,10 +7,7 @@
 class WindowThread : public std::enable_shared_from_this<WindowThread>
 {
 public:
-    WindowThread(winrt::TerminalApp::AppLogic logic,
-                 winrt::Microsoft::Terminal::Remoting::WindowRequestedArgs args,
-                 winrt::Microsoft::Terminal::Remoting::WindowManager manager,
-                 winrt::Microsoft::Terminal::Remoting::Peasant peasant);
+    WindowThread(winrt::TerminalApp::AppLogic logic, winrt::TerminalApp::WindowRequestedArgs args, std::weak_ptr<WindowEmperor> manager);
 
     winrt::TerminalApp::TerminalWindow Logic();
     void CreateHost();
@@ -19,20 +16,16 @@ public:
 
     bool KeepWarm();
     void Refrigerate();
-    void Microwave(
-        winrt::Microsoft::Terminal::Remoting::WindowRequestedArgs args,
-        winrt::Microsoft::Terminal::Remoting::Peasant peasant);
+    void Microwave(winrt::TerminalApp::WindowRequestedArgs args);
 
     uint64_t PeasantID();
 
     til::event<winrt::delegate<void()>> UpdateSettingsRequested;
 
 private:
-    winrt::Microsoft::Terminal::Remoting::Peasant _peasant{ nullptr };
-
     winrt::TerminalApp::AppLogic _appLogic{ nullptr };
-    winrt::Microsoft::Terminal::Remoting::WindowRequestedArgs _args{ nullptr };
-    winrt::Microsoft::Terminal::Remoting::WindowManager _manager{ nullptr };
+    winrt::TerminalApp::WindowRequestedArgs _args{ nullptr };
+    std::weak_ptr<WindowEmperor> _manager;
 
     // This is a "shared_ptr", but it should be treated as a unique, owning ptr.
     // It's shared, because there are edge cases in refrigeration where internal
